@@ -10,6 +10,7 @@ import BudgetSetup from "./pages/budget-setup";
 import ExpenseList from "./pages/expense-list";
 import Learning from "./pages/learning";
 import Profile from "./pages/profile";
+import Quiz from "./pages/quiz";
 import AuthPage from "./pages/auth-page";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <ProtectedRoute path="/expenses" component={ExpenseList} />
       <ProtectedRoute path="/learning" component={Learning} />
       <ProtectedRoute path="/profile" component={Profile} />
+      <ProtectedRoute path="/quiz" component={Quiz} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

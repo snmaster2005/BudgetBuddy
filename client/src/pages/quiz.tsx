@@ -10,7 +10,7 @@ import { useLocation } from "wouter";
 import { Loader2, Check, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default function Quiz() {
+export default function Quiz(): JSX.Element {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -258,7 +258,7 @@ export default function Quiz() {
                 </p>
               </div>
 
-              <Alert variant={quizResults.upiUnblocked ? "success" : "destructive"}>
+              <Alert variant={quizResults.upiUnblocked ? "default" : "destructive"}>
                 <AlertTitle>
                   {quizResults.upiUnblocked
                     ? "UPI Transactions Unblocked"
@@ -297,5 +297,10 @@ export default function Quiz() {
     );
   }
   
-  return null;
+  // If we somehow reach here, show a loading state
+  return (
+    <div className="container mx-auto py-8 px-4 max-w-4xl flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin" />
+    </div>
+  );
 }

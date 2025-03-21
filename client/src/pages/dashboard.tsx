@@ -2,6 +2,7 @@ import { Header } from "@/components/nav/header";
 import { BottomNavigation } from "@/components/nav/bottom-navigation";
 import { BudgetProgress } from "@/components/budgets/budget-progress";
 import { BudgetAlert } from "@/components/budgets/budget-alert";
+import { UpiBlockAlert } from "@/components/budgets/upi-block-alert";
 import { TransactionList } from "@/components/expenses/transaction-list";
 import { CategorySpending } from "@/components/budgets/category-spending";
 import { ExpenseForm } from "@/components/expenses/expense-form";
@@ -37,6 +38,9 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold">Hi, {firstName}!</h2>
             <p className="text-gray-500 text-sm">Let's check your budget status</p>
           </div>
+          
+          {/* UPI Block Alert */}
+          <UpiBlockAlert />
           
           {/* Monthly Budget Overview */}
           <BudgetProgress budget={budget} isLoading={isLoadingBudget} />

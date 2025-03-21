@@ -51,6 +51,7 @@ export interface IStorage {
   getQuizQuestions(difficulty: string, count: number): Promise<QuizQuestion[]>;
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
   createQuizAttempt(userId: number, questions: QuizQuestion[]): Promise<QuizAttempt>;
+  getActiveQuizAttempt(userId: number): Promise<QuizAttempt | undefined>;
   completeQuizAttempt(userId: number, correctAnswers: number): Promise<boolean>;
   
   // UPI Control
@@ -619,6 +620,15 @@ export class MemStorage implements IStorage {
     this.quizAttempts.set(userId, quizAttempt);
     
     return quizAttempt;
+  }
+  
+  async getActiveQuizAttempt(userId: number): Promise<QuizAttempt | undefined> {
+    const attempt = this.quizAttempts.get(userId);
+    // Only return if it exists and is not completed
+    if (attempt && !attempt.completed) {
+      return attempt;
+    }
+    return undefined;
   }
   
   async completeQuizAttempt(userId: number, correctAnswers: number): Promise<boolean> {

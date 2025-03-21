@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
     try {
-      const { name, email, upiId, pushNotifications, upiSpendingLimits, darkMode } = req.body;
+      const { name, email, upiId, pushNotifications, upiSpendingLimits, darkMode, upiBlockEnabled } = req.body;
       
       const updatedUser = await storage.updateUser(req.user.id, {
         name,
@@ -158,7 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         upiId,
         pushNotifications,
         upiSpendingLimits,
-        darkMode
+        darkMode,
+        upiBlockEnabled
       });
       
       if (!updatedUser) {
@@ -171,12 +172,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Bank account routes
+  app.post("/api/bank/connect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const { accountId } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({ message: "Account ID is required" });
+      }
+      
+      const bankInfo = await storage.connectBankAccount(req.user.id, accountId);
+      res.status(201).json(bankInfo);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to connect bank account" });
+    }
+  });
+  
+  app.post("/api/bank/disconnect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      await storage.disconnectBankAccount(req.user.id);
+      res.status(200).json({ message: "Bank account disconnected successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to disconnect bank account" });
+    }
+  });
+  
+  app.get("/api/bank/info", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const bankInfo = await storage.getBankAccountInfo(req.user.id);
+      
+      if (!bankInfo) {
+        return res.status(404).json({ message: "No bank account connected" });
+      }
+      
+      res.json(bankInfo);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get bank account info" });
+    }
+  });
+  
+  app.put("/api/bank/balance", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const { balance } = req.body;
+      
+      if (typeof balance !== 'number' || balance < 0) {
+        return res.status(400).json({ message: "Valid balance amount is required" });
+      }
+      
+      const bankInfo = await storage.updateBankBalance(req.user.id, balance);
+      res.json(bankInfo);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update bank balance" });
+    }
+  });
+  
+  // Quiz related routes
+  app.get("/api/quiz/questions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const difficulty = req.query.difficulty as string || 'medium';
+      const count = parseInt(req.query.count as string || '5', 10);
+      
+      const questions = await storage.getQuizQuestions(difficulty, count);
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch quiz questions" });
+    }
+  });
+  
+  app.post("/api/quiz/start", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      // Get questions for the quiz
+      const difficulty = req.body.difficulty || 'medium';
+      const count = req.body.count || 5;
+      
+      const questions = await storage.getQuizQuestions(difficulty, count);
+      
+      // Create a quiz attempt
+      const quizAttempt = await storage.createQuizAttempt(req.user.id, questions);
+      
+      // Return the questions with their correct answers removed
+      const sanitizedQuestions = quizAttempt.questions.map(q => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        difficulty: q.difficulty,
+      }));
+      
+      res.status(201).json({
+        totalQuestions: quizAttempt.totalQuestions,
+        questions: sanitizedQuestions
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to start quiz" });
+    }
+  });
+  
+  app.post("/api/quiz/complete", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const { answers } = req.body;
+      
+      if (!Array.isArray(answers)) {
+        return res.status(400).json({ message: "Answers must be an array" });
+      }
+      
+      // Get the user's active quiz attempt
+      const quizAttempt = await storage.getActiveQuizAttempt(req.user.id);
+      
+      if (!quizAttempt || quizAttempt.completed) {
+        return res.status(400).json({ message: "No active quiz attempt found" });
+      }
+      
+      // Calculate the number of correct answers
+      const correctAnswers = answers.reduce((count, answer, index) => {
+        const question = quizAttempt.questions[index];
+        return count + (answer === question.correctAnswer ? 1 : 0);
+      }, 0);
+      
+      // Complete the quiz attempt
+      const passed = await storage.completeQuizAttempt(req.user.id, correctAnswers);
+      
+      // Return results
+      res.json({
+        correctAnswers,
+        totalQuestions: quizAttempt.totalQuestions,
+        passed,
+        score: Math.round((correctAnswers / quizAttempt.totalQuestions) * 100),
+        upiUnblocked: passed
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to complete quiz" });
+    }
+  });
+  
+  // UPI Control routes
+  app.post("/api/upi/block", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const user = await storage.blockUPI(req.user.id);
+      res.json({ upiBlocked: true, user });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to block UPI" });
+    }
+  });
+  
+  app.post("/api/upi/unblock", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const user = await storage.unblockUPI(req.user.id);
+      res.json({ upiBlocked: false, user });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unblock UPI" });
+    }
+  });
+  
   // Mock UPI transaction
   app.post("/api/upi/transaction", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
     try {
       const { amount, categoryId, note } = req.body;
+      
+      // Check if UPI is currently blocked for this user
+      if (req.user.upiCurrentlyBlocked) {
+        return res.status(403).json({
+          message: "UPI transactions are currently blocked. Complete the financial quiz to unblock.",
+          status: "BLOCKED",
+          upiBlocked: true
+        });
+      }
       
       // Check if user is exceeding budget for category
       const today = new Date();
@@ -192,10 +371,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (categoryBudget && categoryBudget.spent + amount > categoryBudget.amount) {
+          // If auto-blocking is enabled, block UPI
+          if (req.user.upiBlockEnabled) {
+            await storage.blockUPI(req.user.id);
+          }
+          
           return res.status(400).json({
             message: "UPI transaction rejected. You've exceeded your budget for this category.",
             status: "BLOCKED",
-            budgetExceeded: true
+            budgetExceeded: true,
+            upiBlocked: req.user.upiBlockEnabled
           });
         }
       }
@@ -209,6 +394,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         note: note || "UPI Transaction",
         isUPI: true
       });
+      
+      // Check if the bank account balance should be updated
+      const bankInfo = await storage.getBankAccountInfo(req.user.id);
+      if (bankInfo) {
+        const newBalance = bankInfo.balance - amount;
+        if (newBalance >= 0) {
+          await storage.updateBankBalance(req.user.id, newBalance);
+        }
+      }
       
       res.status(201).json({
         status: "SUCCESS",

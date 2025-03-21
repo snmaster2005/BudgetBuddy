@@ -43,7 +43,7 @@ export function isIos(): boolean {
     return win.Capacitor.getPlatform() === 'ios';
   }
   
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
 /**

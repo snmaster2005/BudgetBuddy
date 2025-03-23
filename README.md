@@ -31,7 +31,7 @@ A budget management application designed for teenagers that helps track expenses
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/teen-budget-app.git
+   git clone https://github.com/yourusername/BudgetBuddy.git
    cd teen-budget-app
    ```
 
